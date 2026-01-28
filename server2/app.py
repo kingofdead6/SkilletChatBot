@@ -63,4 +63,4 @@ def clear():
 if __name__ == "__main__":
     print("LangChain Chatbot with Memory Starting... 🚀")
     print(f"Model: {TEXT_MODEL}")
-    app.run(host="0.0.0.0", port=6000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=False)
