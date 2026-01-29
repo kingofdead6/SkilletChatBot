@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./components/Login"
-import Register from "./components/Register"
-import Chat from "./components/Chat"
-import Settings from "./components/settings";
+import Login from "./components/auth/Login"
+import Register from "./components/auth/Register"
+import Chat from "./components/chat/Chat"
+import Settings from "./components/chat/settings";
 
 function App() {
   return (

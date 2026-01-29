@@ -1,7 +1,7 @@
 // src/Register.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { NODE_API } from '../../api';
+import { NODE_API } from '../../../api';
 
 export default function Register() {
   const navigate = useNavigate();

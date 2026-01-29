@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash, FaUser, FaLock } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { NODE_API } from '../../api';
+import { NODE_API } from '../../../api';
 
 export default function Login() {
   const navigate = useNavigate();

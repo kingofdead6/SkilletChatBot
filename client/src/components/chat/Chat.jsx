@@ -1,7 +1,7 @@
 // src/Chat.jsx
 import { useState, useRef, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { NODE_API } from "../../api.js";
+import { NODE_API } from "../../../api.js";
 import Sidebar from './sideBar.jsx';
 
 export default function Chat() {

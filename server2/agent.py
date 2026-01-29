@@ -1,6 +1,3 @@
-# agent.py
-print(">>> agent.py imported (FAST MODE)")
-
 from huggingface_hub import InferenceClient
 import os
 
