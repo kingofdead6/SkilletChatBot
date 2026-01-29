@@ -43,43 +43,10 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Public routes */}
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? (
-              <Navigate to="/chat" replace />
-            ) : (
-              <Login onLoginSuccess={handleLoginSuccess} />
-            )
-          } 
-        />
-        <Route 
-          path="/register" 
-          element={<Register />} 
-        />
-
-        {/* Protected routes - redirect to login if not authenticated */}
-        <Route
-          path="/chat"
-          element={
-            isAuthenticated ? (
-              <Chat onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            isAuthenticated ? (
-              <Settings />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+        <Route path="/" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/chat" element={<Chat />}/>    
+        <Route path="/settings" element={<Settings/> } />
 
         {/* Catch-all - redirect to login */}
         <Route path="*" element={<Navigate to="/" replace />} />
