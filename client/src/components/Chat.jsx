@@ -1,10 +1,11 @@
 // src/Chat.jsx
 import { useState, useRef, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { NODE_API, PYTHON_API } from "../../api.js"; // assuming these are correct
+import { NODE_API } from "../../api.js";
+import Sidebar from './sideBar.jsx';
 
 export default function Chat() {
-  const token = localStorage.getItem('token');
+  const email = sessionStorage.getItem('email');
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -14,12 +15,11 @@ export default function Chat() {
   const [chats, setChats] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCreatingChat, setIsCreatingChat] = useState(false); // prevent multiple clicks
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Speech recognition
   const {
     transcript,
     listening,
@@ -42,77 +42,56 @@ export default function Chat() {
     }
   }, [isLoading, listening, currentChatId]);
 
-  // Load chats on mount
   useEffect(() => {
-    if (!token) {
-      console.warn('No token found — user not logged in');
+    if (!email) {
+      setError("Please log in first");
       return;
     }
     fetchChats();
-  }, [token]);
+  }, []);
 
   const fetchChats = async () => {
     try {
       const res = await fetch(`${NODE_API}/chats`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'x-user-email': email },
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to fetch chats (${res.status})`);
-      }
+      if (!res.ok) throw new Error(await res.text() || 'Failed to load chats');
 
       const data = await res.json();
       setChats(data);
 
-      // Auto-load most recent or create new
       if (data.length > 0) {
         loadChat(data[0]._id);
       } else {
         createNewChat();
       }
     } catch (err) {
-      console.error('Fetch chats error:', err);
-      setError(err.message);
+      console.error(err);
+      setError(err.message || "Couldn't load chats");
     }
   };
 
   const createNewChat = async () => {
-    if (isCreatingChat) return; // prevent spam
+    if (isCreatingChat) return;
     setIsCreatingChat(true);
     setError(null);
 
     try {
       const res = await fetch(`${NODE_API}/chats/new`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'x-user-email': email },
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to create chat (${res.status})`);
-      }
+      if (!res.ok) throw new Error(await res.text() || 'Failed to create chat');
 
-      const data = await res.json();
-      setCurrentChatId(data.chatId);
+      const { chatId } = await res.json();
+      setCurrentChatId(chatId);
       setMessages([]);
 
-      // Refresh list
-      const updatedRes = await fetch(`${NODE_API}/chats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const updated = await updatedRes.json();
-      setChats(updated);
+      await fetchChats();
     } catch (err) {
-      console.error('Create chat error:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to create new chat');
     } finally {
       setIsCreatingChat(false);
     }
@@ -121,16 +100,10 @@ export default function Chat() {
   const loadChat = async (chatId) => {
     try {
       const res = await fetch(`${NODE_API}/chats/${chatId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'x-user-email': email },
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to load chat (${res.status})`);
-      }
+      if (!res.ok) throw new Error(await res.text() || 'Failed to load chat');
 
       const data = await res.json();
       setMessages(data.messages || []);
@@ -138,8 +111,30 @@ export default function Chat() {
       setIsSidebarOpen(false);
       setError(null);
     } catch (err) {
-      console.error('Load chat error:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load chat');
+    }
+  };
+
+  const deleteChat = async (chatId) => {
+    if (!window.confirm('Delete this chat permanently?')) return;
+
+    try {
+      const res = await fetch(`${NODE_API}/chats/${chatId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-email': email },
+      });
+
+      if (!res.ok) throw new Error(await res.text() || 'Delete failed');
+
+      setChats((prev) => prev.filter((c) => c._id !== chatId));
+
+      if (currentChatId === chatId) {
+        setCurrentChatId(null);
+        setMessages([]);
+        createNewChat();
+      }
+    } catch (err) {
+      setError('Could not delete chat: ' + err.message);
     }
   };
 
@@ -148,7 +143,7 @@ export default function Chat() {
       SpeechRecognition.stopListening();
     } else {
       if (!browserSupportsSpeechRecognition || !isMicrophoneAvailable) {
-        alert('Voice input not supported or mic blocked.');
+        alert('Voice input not supported or microphone access denied.');
         return;
       }
       resetTranscript();
@@ -174,18 +169,23 @@ export default function Chat() {
     setError(null);
 
     try {
-      const res = await fetch(`${PYTHON_API}/chat`, {
+      const hfToken = localStorage.getItem('hf_api_token');
+      const res = await fetch(`${NODE_API}/chats/message`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': email,
+        },
         body: JSON.stringify({
+          chatId: currentChatId,
           message: trimmed,
-          session_id: currentChatId,
+          hf_token: hfToken || undefined,
         }),
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error ${res.status}`);
+        const errText = await res.text();
+        throw new Error(errText || `Server error ${res.status}`);
       }
 
       const data = await res.json();
@@ -199,9 +199,10 @@ export default function Chat() {
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
-      console.error(err);
+      console.error('sendMessage error:', err);
       const errorMsg = err.message || 'Something went wrong';
       setError(errorMsg);
+
       setMessages((prev) => [
         ...prev,
         {
@@ -223,70 +224,39 @@ export default function Chat() {
     }
   };
 
+  if (!email) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
+        <div className="text-center">
+          <h2 className="text-2xl mb-4">Please log in to continue</h2>
+          <a href="/login" className="text-blue-500 underline">Go to Login</a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 flex">
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gray-900 transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Chats</h2>
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden text-gray-400 hover:text-white text-xl"
-          >
-            ✕
-          </button>
-        </div>
+      {/* Sidebar Component */}
+      <Sidebar
+        chats={chats}
+        currentChatId={currentChatId}
+        onSelectChat={loadChat}
+        onNewChat={createNewChat}
+        isSidebarOpen={isSidebarOpen}
+        onCloseSidebar={() => setIsSidebarOpen(false)}
+        isCreatingChat={isCreatingChat}
+        isLoading={isLoading}
+        onDeleteChat={deleteChat}
+      />
 
-        <div className="p-4">
-          <button
-            onClick={createNewChat}
-            disabled={isCreatingChat || isLoading}
-            className={`w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded mb-4 transition ${
-              isCreatingChat ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isCreatingChat ? 'Creating...' : '+ New Chat'}
-          </button>
-
-          <ul className="space-y-2 max-h-[70vh] overflow-y-auto">
-            {chats.length === 0 && (
-              <li className="text-gray-500 p-3">No chats yet</li>
-            )}
-            {chats.map((chat) => (
-              <li
-                key={chat._id}
-                onClick={() => loadChat(chat._id)}
-                className={`p-3 rounded cursor-pointer transition ${
-                  currentChatId === chat._id
-                    ? 'bg-gray-700 text-white'
-                    : 'hover:bg-gray-800 text-gray-300'
-                }`}
-              >
-                {chat.title || `Chat ${new Date(chat.createdAt).toLocaleDateString()}`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
-
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-60 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col">
-        <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col transition-all duration-300">
+        {/* Header */}
+        <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center sticky top-0 z-40">
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="lg:hidden text-2xl mr-4"
+            className="text-2xl mr-4 lg:hidden"
           >
             ☰
           </button>
@@ -295,6 +265,7 @@ export default function Chat() {
           </h1>
         </header>
 
+        {/* Messages */}
         <main className="flex-1 overflow-y-auto p-4 pb-24">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -315,8 +286,8 @@ export default function Chat() {
                     : 'bg-gray-800 text-gray-100 rounded-bl-none'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-                <div className="text-xs opacity-50 mt-1">
+                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                <div className="text-xs opacity-50 mt-1 text-right">
                   {new Date(msg.timestamp).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -331,8 +302,8 @@ export default function Chat() {
               <div className="bg-gray-800 rounded-2xl px-5 py-3">
                 <div className="flex space-x-2">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce animation-delay-200"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce animation-delay-400"></div>
                 </div>
               </div>
             </div>
@@ -349,6 +320,7 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </main>
 
+        {/* Input Footer */}
         <footer className="bg-gray-900 border-t border-gray-800 p-4 fixed bottom-0 left-0 right-0 lg:left-72">
           <div className="max-w-4xl mx-auto flex gap-3 items-center">
             <input
@@ -357,7 +329,7 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={listening ? 'Listening...' : 'Type or speak your message...'}
+              placeholder={listening ? 'Listening...' : 'Type your message...'}
               disabled={isLoading || listening || !currentChatId}
               className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 disabled:opacity-50"
             />
@@ -369,7 +341,7 @@ export default function Chat() {
               className={`p-3 rounded-full transition-colors ${
                 listening ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
               } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-              title={listening ? 'Stop listening' : 'Start voice input'}
+              title={listening ? 'Stop listening' : 'Voice input'}
             >
               {listening ? '⏹' : '🎤'}
             </button>

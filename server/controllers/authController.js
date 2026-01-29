@@ -1,64 +1,100 @@
-
-import User from '../models/User.js';
+// controllers/authController.js
 import asyncHandler from 'express-async-handler';
 import validator from 'validator';
+import User from '../models/User.js';
 
+/**
+ * Register a new user
+ * POST /auth/register
+ */
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
-  console.log('Register user request:', { name, email });
 
-  if (!name || !validator.isLength(name, { min: 1, max: 100 })) {
-    console.error('Invalid name');
+  // Input validation
+  if (!name || !validator.isLength(name.trim(), { min: 2, max: 100 })) {
     res.status(400);
-    throw new Error('Valid name required');
+    throw new Error('Name must be between 2 and 100 characters');
   }
+
   if (!email || !validator.isEmail(email)) {
-    console.error('Invalid email');
     res.status(400);
-    throw new Error('Valid email required');
+    throw new Error('Please provide a valid email address');
   }
+
   if (!password || password.length < 6) {
-    console.error('Invalid password');
     res.status(400);
-    throw new Error('Password must be at least 6 characters');
+    throw new Error('Password must be at least 6 characters long');
   }
 
-
-  const existingUser = await User.findOne({ email });
+  // Check for existing user
+  const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    console.error('Email already exists');
     res.status(400);
-    throw new Error('Email already exists');
+    throw new Error('Email is already in use');
   }
 
-  const user = await User.create({ name, email, password });
-  console.log('User registered:', user._id);
-  res.status(201).json({ id: user._id, name, email });
+  // Create user (password will be hashed by pre-save hook)
+  const user = await User.create({
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    password,
+  });
+
+  // Return minimal data – no token needed
+  return res.status(201).json({
+    success: true,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    },
+  });
 });
 
-
-
+/**
+ * Login user
+ * POST /auth/login
+ *
+ * Returns success + user info (no token – using x-user-email header auth)
+ */
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  console.log('Login attempt:', { email });
 
+  // Basic validation
   if (!email || !validator.isEmail(email)) {
-    console.error('Invalid email');
     res.status(400);
-    throw new Error('Valid email is required');
+    throw new Error('Please provide a valid email address');
   }
+
   if (!password) {
-    console.error('Password required');
     res.status(400);
     throw new Error('Password is required');
   }
 
-  const user = await User.findOne({ email }).select('+password');
-  if (!user || !(await user.matchPassword(password))) {
-    console.error('Invalid credentials');
+  // Find user and include password for comparison
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+
+  if (!user) {
     res.status(401);
     throw new Error('Invalid email or password');
   }
 
-  res.status(200).json({ token: user.generateToken() });
+  // Verify password
+  const isMatch = await user.matchPassword(password);
+  if (!isMatch) {
+    res.status(401);
+    throw new Error('Invalid email or password');
+  }
+
+  // Success – return minimal info
+  // Frontend will store email in sessionStorage
+  return res.status(200).json({
+    success: true,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+    },
+    // message: 'Logged in successfully – use x-user-email header for protected routes',
+  });
 });

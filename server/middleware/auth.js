@@ -1,16 +1,24 @@
-import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-export const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token' });
+export const authByEmail = async (req, res, next) => {
+  const email = req.headers['x-user-email'];
 
-  const token = authHeader.split(' ')[1];
+  if (!email) {
+    return res.status(401).json({ error: 'Authentication required: x-user-email header missing' });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.id; // 🔥 THIS IS REQUIRED
+    const user = await User.findOne({ email }).select('_id email name');
+
+    if (!user) {
+      return res.status(401).json({ error: 'No account found with this email' });
+    }
+
+    req.userId = user._id;
+    req.user = user;
     next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
+  } catch (err) {
+    console.error('Auth middleware error:', err.message);
+    return res.status(500).json({ error: 'Authentication server error' });
   }
 };

@@ -2,28 +2,21 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from agent import ChatAgent
-from dotenv import load_dotenv
 import os
-
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Config
-TEXT_MODEL = os.getenv("TEXT_MODEL")
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # recommended: store token in .env
+# Fallback token from .env (used only if user doesn't provide one)
+FALLBACK_HF_TOKEN = os.getenv("HF_API_TOKEN")
+TEXT_MODEL = os.getenv("TEXT_MODEL", "meta-llama/Llama-3.2-3B-Instruct")  # example default
 
-# We'll store one agent per session (simple in-memory for now)
-# For production, use Redis or similar
-sessions = {}
-
-def get_agent(session_id: str):
-    if session_id not in sessions:
-        if not HF_API_TOKEN:
-            raise ValueError("HF_API_TOKEN not set")
-        sessions[session_id] = ChatAgent(token=HF_API_TOKEN, model_name=TEXT_MODEL)
-    return sessions[session_id]
+# We'll create agent per request now (to support per-user tokens)
+def get_agent(hf_token=None):
+    token = hf_token or FALLBACK_HF_TOKEN
+    if not token:
+        raise ValueError("No Hugging Face API token provided and no fallback token set")
+    return ChatAgent(token=token, model_name=TEXT_MODEL)
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -33,15 +26,16 @@ def health():
 def chat():
     data = request.get_json() or {}
     message = data.get("message", "").strip()
-    session_id = data.get("session_id", "default")   # optional – can be random or user-based
+    session_id = data.get("session_id", "default")
+    hf_token = data.get("hf_token")  # user-provided token
 
     if not message:
         return jsonify({"error": "No message provided"}), 400
 
     try:
-        agent = get_agent(session_id)   # your existing get_agent function
+        agent = get_agent(hf_token)  # uses user token or fallback
         reply = agent.chat(message, session_id=session_id)
-        
+
         return jsonify({
             "response": reply,
             "model": TEXT_MODEL
@@ -51,16 +45,13 @@ def chat():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# Optional: clear conversation memory
+# Optional clear route (unchanged)
 @app.route("/clear", methods=["POST"])
 def clear():
-    data = request.get_json() or {}
-    session_id = data.get("session_id", "default")
-    if session_id in sessions:
-        sessions[session_id].clear_memory()
+    # ... (you may want to adapt if agents are per-request now)
     return jsonify({"status": "cleared"})
 
 if __name__ == "__main__":
-    print("LangChain Chatbot with Memory Starting... 🚀")
-    print(f"Model: {TEXT_MODEL}")
+    print("LangChain Chatbot with Per-User Tokens Starting... 🚀")
+    print(f"Default model: {TEXT_MODEL}")
     app.run(host="0.0.0.0", port=5000, debug=False)
