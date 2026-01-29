@@ -372,7 +372,7 @@ export default function Chat() {
           `}
           
         >
-          <div className="max-w-5xl mx-auto flex gap-3 items-center z-20">
+          <div className="md:max-w-5xl max-w-lg mx-auto flex gap-3 items-center z-20">
             <input
               ref={inputRef}
               type="text"
@@ -410,11 +410,11 @@ export default function Chat() {
               disabled={isLoading || !input.trim() || !currentChatId}
               className="
                 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 cursor-pointer 
-                text-white px-7 py-4 rounded-full font-semibold transition-all shadow-lg shadow-red-600/40
+                text-white px-4 py-4 rounded-full font-semibold transition-all shadow-lg shadow-red-600/40
                 disabled:opacity-50 disabled:cursor-not-allowed 
               "
             >
-              Send
+              ✔️
             </button>
           </div>
         </footer>
