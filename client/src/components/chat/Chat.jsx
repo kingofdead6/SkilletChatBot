@@ -370,9 +370,6 @@ export default function Chat() {
             fixed left-0 right-0 lg:left-72 z-50
             transition-all duration-200
           `}
-          style={{
-            bottom: window.innerWidth < 1024 ? 'var(--vh-mobile, env(safe-area-inset-bottom, 0px))' : '0px',
-          }}
         >
           <div className="max-w-5xl mx-auto flex gap-3 items-center z-20">
             <input
