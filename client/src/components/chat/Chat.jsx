@@ -372,7 +372,7 @@ export default function Chat() {
           `}
           
         >
-          <div className="md:max-w-5xl max-w-lg mx-auto flex gap-3 items-center z-20">
+          <div className=" mx-auto flex gap-3 items-center z-20">
             <input
               ref={inputRef}
               type="text"
@@ -384,7 +384,7 @@ export default function Chat() {
               className="
                 flex-1 bg-gray-800/70 text-white border border-blue-700/50 rounded-full
                 px-6 py-4 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-600/40
-                disabled:opacity-50 transition-all shadow-inner lg:max-w-5xl max-w-md
+                disabled:opacity-50 transition-all shadow-inner lg:max-w-5xl max-w-sm
               "
             />
 
