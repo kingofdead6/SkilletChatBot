@@ -367,9 +367,10 @@ export default function Chat() {
         <footer
           className={`
             bg-gray-900/90 backdrop-blur-xl border-t border-blue-800/50 p-4
-            fixed left-0 right-0 lg:left-72 z-50
+            fixed bottom-0 left-0 right-0 lg:left-72 z-50
             transition-all duration-200
           `}
+          
         >
           <div className="max-w-5xl mx-auto flex gap-3 items-center z-20">
             <input
