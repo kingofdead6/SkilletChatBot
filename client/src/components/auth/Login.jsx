@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash, FaUser, FaLock } from 'react-icons/fa';
@@ -18,7 +19,7 @@ export default function Login() {
     const errs = {};
     if (!email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      errs.email = 'Please enter a valid email';
+      errs.email = 'Invalid email format';
 
     if (!password) errs.password = 'Password is required';
     else if (password.length < 6)
@@ -48,7 +49,7 @@ export default function Login() {
       const message =
         error.response?.data?.message ||
         error.response?.data?.error ||
-        'Login failed. Please check your credentials.';
+        'Login failed. Check your credentials.';
       setErrors({ form: message });
     } finally {
       setLoading(false);
@@ -56,96 +57,124 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-20 bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-indigo-950 flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Background neon glows */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl -translate-x-1/3 -translate-y-1/3"></div>
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3"></div>
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="
+          relative w-full max-w-md
+          bg-gray-900/70 backdrop-blur-xl border border-blue-800/40
+          rounded-3xl shadow-2xl shadow-black/70 p-8 md:p-10
+        "
       >
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-light text-gray-900">Welcome Back</h1>
-          <p className="mt-2 text-gray-600">Sign in to continue</p>
-        </div>
+        <h1 className="
+          text-4xl md:text-5xl font-extrabold mb-10 text-center
+          bg-gradient-to-r from-blue-400 via-purple-500 to-red-500
+          bg-clip-text text-transparent tracking-tight
+        ">
+          LOGIN
+        </h1>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
-          {errors.form && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-center">
-              {errors.form}
+        {errors.form && (
+          <div className="mb-8 p-4 bg-red-900/40 border border-red-500/40 rounded-xl text-red-300 text-center font-medium shadow-inner">
+            ⚠️ {errors.form}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-7">
+          {/* Email */}
+          <div>
+            <label className="block text-lg font-medium mb-2 text-blue-300">
+              Email
+            </label>
+            <div className="relative">
+              <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400/70 text-xl" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="
+                  w-full pl-12 pr-4 py-4 bg-gray-800/70 border-2 border-blue-800/50 rounded-xl
+                  text-white placeholder-gray-500 text-base md:text-lg
+                  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-600/50
+                  transition-all duration-300 shadow-inner
+                "
+              />
             </div>
-          )}
+            {errors.email && (
+              <p className="mt-2 text-sm text-red-400">{errors.email}</p>
+            )}
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-              )}
+          {/* Password */}
+          <div>
+            <label className="block text-lg font-medium mb-2 text-blue-300">
+              Password
+            </label>
+            <div className="relative">
+              <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400/70 text-xl" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="
+                  w-full pl-12 pr-12 py-4 bg-gray-800/70 border-2 border-blue-800/50 rounded-xl
+                  text-white placeholder-gray-500 text-base md:text-lg
+                  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-600/50
+                  transition-all duration-300 shadow-inner
+                "
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className=" cursor-pointer absolute right-4 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-300 transition"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FaEyeSlash className="text-xl" /> : <FaEye className="text-xl" />}
+              </button>
             </div>
+            {errors.password && (
+              <p className="mt-2 text-sm text-red-400">{errors.password}</p>
+            )}
+          </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-              )}
-            </div>
+          <motion.button
+            type="submit"
+            disabled={loading}
+            whileTap={{ scale: 0.97 }}
+            className="
+              w-full py-4 px-6 rounded-xl font-bold text-lg tracking-wide cursor-pointer
+              bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700
+              hover:from-blue-600 hover:via-blue-500 hover:to-indigo-600
+              text-white shadow-lg shadow-blue-900/40
+              transition-all duration-300 transform hover:scale-[1.02] hover:shadow-blue-700/50
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
+          >
+            {loading ? 'Signing in...' : 'SIGN IN'}
+          </motion.button>
+        </form>
 
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileTap={{ scale: 0.97 }}
-              className="w-full py-4 bg-black text-white rounded-xl font-semibold hover:bg-gray-900 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </motion.button>
-          </form>
-
-          <p className="mt-8 text-center text-gray-600">
-            Don't have an account?{' '}
-            <button
-              onClick={() => navigate('/register')}
-              className="text-blue-600 hover:underline font-medium"
-            >
-              Register
-            </button>
-          </p>
-        </div>
+        <p className="mt-8 text-center text-gray-400">
+          Don't have an account?{' '}
+          <button
+            onClick={() => navigate('/register')}
+            className="text-blue-400 hover:text-blue-300 font-medium underline transition cursor-pointer"
+          >
+            Register
+          </button>
+        </p>
       </motion.div>
     </div>
   );

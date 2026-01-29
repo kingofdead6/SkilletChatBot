@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { NODE_API } from "../../../api.js";
 import Sidebar from './sideBar.jsx';
+import { TypeAnimation } from 'react-type-animation';
 
 export default function Chat() {
   const email = sessionStorage.getItem('email');
@@ -37,10 +38,30 @@ export default function Chat() {
   }, [messages]);
 
   useEffect(() => {
-    if (!isLoading && !listening && currentChatId) {
-      inputRef.current?.focus();
+    if (!isLoading && !listening && currentChatId && inputRef.current) {
+      inputRef.current.focus();
     }
   }, [isLoading, listening, currentChatId]);
+
+  // Mobile-only keyboard handling
+  useEffect(() => {
+    // Only run on mobile/touch devices
+    if (!('visualViewport' in window) || window.innerWidth >= 1024) return;
+
+    const handleResize = () => {
+      const vh = window.visualViewport.height;
+      document.documentElement.style.setProperty('--vh-mobile', `${vh}px`);
+    };
+
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    handleResize();
+
+    return () => {
+      window.visualViewport.removeEventListener('resize', handleResize);
+      window.visualViewport.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (!email) {
@@ -170,6 +191,7 @@ export default function Chat() {
 
     try {
       const hfToken = localStorage.getItem('hf_api_token');
+
       const res = await fetch(`${NODE_API}/chats/message`, {
         method: 'POST',
         headers: {
@@ -236,8 +258,8 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex">
-      {/* Sidebar Component */}
+    <div className=" bg-gray-950 text-gray-100 flex flex-col">
+      {/* Sidebar */}
       <Sidebar
         chats={chats}
         currentChatId={currentChatId}
@@ -250,44 +272,61 @@ export default function Chat() {
         onDeleteChat={deleteChat}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col transition-all duration-300">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col lg:ml-72 mb-20 lg:-mt-210">
         {/* Header */}
-        <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center sticky top-0 z-40">
+        <header className="bg-gray-900/90 backdrop-blur-md border-b border-blue-800/50 px-5 py-4 flex items-center sticky top-0 z-40">
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="text-2xl mr-4 lg:hidden"
+            className="text-3xl mr-5 lg:hidden text-blue-400 hover:text-blue-300 transition"
           >
             ☰
           </button>
-          <h1 className="text-xl font-semibold flex-1 text-center lg:text-left">
-            Chat with AI
-          </h1>
+          <h2 className="text-2xl font-bold text-center tracking-tight bg-gradient-to-r from-blue-400 to-red-500 bg-clip-text text-transparent">
+              Skillet
+            </h2>
         </header>
 
         {/* Messages */}
-        <main className="flex-1 overflow-y-auto p-4 pb-24">
+        <main className="flex-1 overflow-y-auto p-5 space-y-5">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400">
-              <p className="text-lg mb-2">Start a conversation</p>
-              <p className="text-sm opacity-70">Type or speak your message</p>
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
+              <p className="text-xl mb-3">Start typing or speak to begin</p>
+              <p className="text-sm opacity-70">Your conversation will appear here</p>
             </div>
           )}
 
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex mb-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-none'
-                }`}
+                className={`
+                  max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3.5
+                  border border-opacity-50 backdrop-blur-sm shadow-lg
+                  ${msg.role === 'user'
+                    ? 'bg-gradient-to-br from-blue-800/70 to-blue-600/70 border-blue-400/60 text-white rounded-br-none shadow-blue-500/30'
+                    : 'bg-gradient-to-br from-gray-900/85 to-black/85 border-red-500/40 text-gray-100 rounded-bl-none shadow-red-600/20'
+                  }
+                `}
               >
-                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                <div className="text-xs opacity-50 mt-1 text-right">
+                {msg.role === 'assistant' ? (
+                  <TypeAnimation
+                    sequence={[msg.content, () => {}]}
+                    wrapper="div"
+                    speed={82}
+                    cursor={true}
+                    repeat={0}
+                    className="whitespace-pre-wrap break-words leading-relaxed"
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap break-words leading-relaxed">
+                    {msg.content}
+                  </div>
+                )}
+
+                <div className="text-xs opacity-60 mt-2 text-right font-mono">
                   {new Date(msg.timestamp).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -298,21 +337,25 @@ export default function Chat() {
           ))}
 
           {isLoading && (
-            <div className="flex justify-start mb-5">
-              <div className="bg-gray-800 rounded-2xl px-5 py-3">
-                <div className="flex space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce animation-delay-200"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce animation-delay-400"></div>
+            <div className="flex justify-start">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-2xl px-6 py-4 border border-blue-700/40 shadow-blue-600/20">
+                <div className="flex space-x-3">
+                  <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce"></div>
+                  <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
                 </div>
               </div>
             </div>
           )}
 
-          {error && <div className="text-center text-red-400 py-4">{error}</div>}
+          {error && (
+            <div className="text-center text-red-400 py-5 font-medium">
+              ⚠️ {error}
+            </div>
+          )}
 
           {listening && (
-            <div className="text-center text-blue-400 py-2 animate-pulse">
+            <div className="text-center text-blue-400 py-4 font-medium">
               Listening... {transcript && `(${transcript})`}
             </div>
           )}
@@ -320,9 +363,18 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </main>
 
-        {/* Input Footer */}
-        <footer className="bg-gray-900 border-t border-gray-800 p-4 fixed bottom-0 left-0 right-0 lg:left-72">
-          <div className="max-w-4xl mx-auto flex gap-3 items-center">
+        {/* Input Footer - mobile keyboard aware */}
+        <footer
+          className={`
+            bg-gray-900/90 backdrop-blur-xl border-t border-blue-800/50 p-4
+            fixed left-0 right-0 lg:left-72 z-50
+            transition-all duration-200
+          `}
+          style={{
+            bottom: window.innerWidth < 1024 ? 'var(--vh-mobile, env(safe-area-inset-bottom, 0px))' : '0px',
+          }}
+        >
+          <div className="max-w-5xl mx-auto flex gap-3 items-center z-20">
             <input
               ref={inputRef}
               type="text"
@@ -331,16 +383,25 @@ export default function Chat() {
               onKeyDown={handleKeyDown}
               placeholder={listening ? 'Listening...' : 'Type your message...'}
               disabled={isLoading || listening || !currentChatId}
-              className="flex-1 bg-gray-800 text-white border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+              className="
+                flex-1 bg-gray-800/70 text-white border border-blue-700/50 rounded-full
+                px-6 py-4 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-600/40
+                disabled:opacity-50 transition-all shadow-inner
+              "
             />
 
             <button
               type="button"
               onClick={toggleListening}
               disabled={isLoading || !currentChatId}
-              className={`p-3 rounded-full transition-colors ${
-                listening ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
-              } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`
+                p-4 rounded-full transition-all transform cursor-pointer 
+                ${listening
+                  ? 'bg-red-600 hover:bg-red-700 scale-105 shadow-red-600/50'
+                  : 'bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 shadow-blue-600/40'
+                }
+                text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed
+              `}
               title={listening ? 'Stop listening' : 'Voice input'}
             >
               {listening ? '⏹' : '🎤'}
@@ -349,7 +410,11 @@ export default function Chat() {
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim() || !currentChatId}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="
+                bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 cursor-pointer 
+                text-white px-7 py-4 rounded-full font-semibold transition-all shadow-lg shadow-red-600/40
+                disabled:opacity-50 disabled:cursor-not-allowed 
+              "
             >
               Send
             </button>
